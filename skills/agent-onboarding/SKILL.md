@@ -127,11 +127,9 @@ with verification.
 
 ## Path A — official agent skills
 
-Syncfusion publishes component-aware skills containing setup, imports, modules and services,
-properties, events, theming, accessibility guidance and implementation patterns — and, more valuable,
-the failure modes that public documentation omits.
+Syncfusion publishes component-aware skills that include setup instructions, imports, modules, services, properties, events, theming guidance, accessibility recommendations, implementation patterns, and common failure scenarios not covered in public documentation.
 
-1. Check whether the matching skill is already installed in the agent's skills location.
+1. Check whether the required skill is already installed in the agent's configured skills location.
 2. If missing and installation is within the user's request, choose the narrowest official pack
    or component skill from the retained inventory routing map, using the behavior-based
    comparison above. Read `references/skill-packs.md` for the verified repository names and commands.
@@ -139,17 +137,82 @@ the failure modes that public documentation omits.
    host's authorization rules.
 4. Read the selected component `SKILL.md` completely before implementing. Read only the supporting
    references the requested features need.
-5. Follow the installed skill over remembered snippets. Match the versions already in the project
-   unless the user asked for an upgrade.
+5. Follow the installed skill over remembered snippets. 
 
-Prefer a single component skill when the component is known; install a full platform pack only when
-the user explicitly asks for the whole pack — never by default at setup or per request. At setup,
-install component skills only for Syncfusion components already present in the project, and wait
-until a user request actually requires a component before installing its skill. Project-local
-installation keeps the skill aligned with the repository and shareable with the team.
+### Version Resolution Policy (Mandatory)
 
-Installing an agent skill does not install the Syncfusion product packages. The component skill
-identifies the actual runtime dependencies; install those separately.
+All Syncfusion packages within a project must use the same **major version**.
+
+Mixing major versions can result in licensing validation failures, package incompatibilities, and runtime issues.
+
+Before installing any new Syncfusion package:
+
+1. Inspect the project manifest (`package.json`, `.csproj`, or equivalent).
+2. Identify all existing Syncfusion packages.
+3. Extract only their major versions.
+4. Verify that all discovered Syncfusion packages use the same major version.
+
+#### No Existing Syncfusion Packages
+
+If no Syncfusion packages are present:
+
+- Follow the component skill.
+- Install the version recommended by the component skill.
+
+#### Existing Syncfusion Packages Found
+
+If Syncfusion packages are already present:
+
+- Determine the project's shared major version.
+- Ignore minor and patch versions.
+- Do not attempt to match an individual package's exact version.
+- Install the requested component using the latest available release within the project's major version.
+
+Example:
+
+```text
+Existing packages:
+@syncfusion/ej2-react-grids      33.1.44
+@syncfusion/ej2-react-buttons    33.2.7
+
+Project major version = 33
+
+New component:
+@syncfusion/ej2-react-schedule
+
+Install:
+Latest available 33.x.x release
+```
+
+#### User-Specified Version
+
+If the user explicitly requests a Syncfusion version:
+
+1. Determine the project's Syncfusion major version from the existing installed packages.
+2. Compare the requested version against the project's version strategy.
+3. If the requested version is compatible with the project's major version, proceed using the standard installation process.
+4. If the requested version conflicts with the project's major version, stop immediately.
+
+Do not install the package when a version conflict exists.
+
+Instead, provide a version-difference report containing:
+
+- Requested package name
+- Requested version
+- Project major version
+- Existing Syncfusion packages and versions
+- Explanation that all Syncfusion packages in a project must share the same major version
+- Description of the detected conflict
+
+After reporting the conflict, wait for human guidance before making any changes.
+
+Example:
+
+Requested:
+
+```text
+@syncfusion/ej2-react-schedule@34.1.2
+```
 
 ## Path B — current documentation
 
