@@ -100,7 +100,7 @@ Triggered when the user asks to:
 
 **Setup Mode executes skill installs. It does not only describe them.** A response that contains
 the words "I will install" or "skills to install" without a passing step 8 verification has not
-completed Setup Mode and is incomplete. **Do not produce the final report until step 9 passes**
+completed Setup Mode and is incomplete. **Do not produce the final report until step 10 passes**
 (the report itself must include the Fresh Version Gate line from step 4 and the on-disk
 proof from step 8).
 
@@ -112,24 +112,25 @@ output before the next step runs. If the artifact is missing, stop and fix that 
 | 1 | Detect the platform from repository manifests (`package.json`, `*.csproj`, `pubspec.yaml`, `*.sln`, `syncfusion.config.json`). | A one-line statement: `Platform: <slug>` with the manifest signal that produced it. |
 | 2 | Read the platform index `https://ai.syncfusion.com/<platform-slug>/llms.txt`. | The platform index file path you read. |
 | 3 | Inspect project manifests for existing Syncfusion packages. | A bullet list of `name@version` entries taken verbatim from `package.json` / `*.csproj` / `pubspec.yaml`. |
-| 4 | **Fresh Version Gate — mandatory.** Re-read the project manifest and lockfile. Determine the project's Syncfusion version using the package-manager rule from `references/version-resolution.md`: npm = shared major, NuGet = exact version, pub.dev = exact constraint. Do not invent a version from memory. If Syncfusion is not installed yet, record `N/A — no existing packages` and use the latest stable within the platform family. | A one-line statement: `Project Syncfusion version (package-manager rule): <value>` (for npm: `npm shared major=<N>`; for NuGet: `exact=<X.Y.Z>`; for Flutter: `constraint=<^X.Y.Z>`; or `N/A — no existing packages`). If a conflict exists, stop and report it. |
+| 4 | **Fresh Version Gate — mandatory.** Re-read the project manifest and lockfile. Determine the project's Syncfusion version using the package-manager rule from `references/version-resolution.md`: npm = shared major, NuGet = exact version, pub.dev = exact constraint. Do not invent a version from memory. If Syncfusion is not installed yet, record `no existing packages` and use the latest stable within the platform family. | A one-line statement: `Project Syncfusion version (package-manager rule): <value>` (for npm: `npm shared major=<N>`; for NuGet: `exact=<X.Y.Z>`; for Flutter: `constraint=<^X.Y.Z>`; or `no existing packages`). If a conflict exists, stop and report it. |
 | 5 | **Run** `npx skills add syncfusion/<repo> --skill <detected-component-skill>` for every detected Syncfusion component, control, library, viewer, editor, SDK, or migration task. One component = one `npx skills add` call. Do not bundle. | The exact command(s) executed and the terminal exit status / output snippet. |
 | 6 | If no Syncfusion packages are present, do not install component skills (this is the only "do not install" rule in Setup Mode). Do not install Syncfusion product packages during setup. **If you add, upgrade, downgrade, or remove a Syncfusion product package later (Task Mode), always invoke the package manager — `npm install`, `pnpm add`, `yarn add`, `dotnet add package`, or `flutter pub add` — and let it update the manifest, lockfile, and dependency tree. Never edit the manifest directly.** | A one-line statement: `Packages detected: <list or "none">` and either the commands from step 5 or the explicit decision not to install. For Task Mode package additions/upgrades, the proof is the exact package-manager command run and its exit status — not a manifest diff. |
 | 7 | Detect MCP availability (read `syncfusion.config.json` `mcp` block and the host editor's MCP config file if present). | The MCP status with the file path you read. |
 | 8 | **Verify the install wrote files.** List the target skills directory and confirm every installed `SKILL.md` is present. | The `ls` / `dir` / `Get-ChildItem` output showing the on-disk `SKILL.md` path(s). If the install failed or no files were written, **stop and report the failure** — do not proceed to step 9. |
-| 9 | Produce the Setup Mode report using the **required output template** below. | The report itself, matching the template, with every field populated and every on-disk path cited. |
+| 9 | Fetch the platform registry index `https://ai.syncfusion.com/r/<platform-slug>/registry.json` (skip if platform has no registry). Do not fetch individual variant files — that happens in Task Mode. | A one-line statement: `Registry index fetched: <url or "no registry for platform">`. |
+| 10 | Produce the Setup Mode report using the **required output template** below. | The report itself, matching the template, with every field populated and every on-disk path cited. |
 
 Command flags for step 5 (skill installs):
 
 - Use `-y` (non-interactive) so the install does not block on a prompt.
-- Use `--agent <name>` when the host agent is known (e.g. `--agent code-studio`, `--agent cursor`,
+- Use `--agent <name>` when the host agent is known (e.g. `--agent codestudio`, `--agent cursor`,
   `--agent claude-code`); omit it to install into the shared `.agents/skills/` directory.
 - If the host requires it, follow the host's authorization rules before the networked install.
 - One detected component = one `npx skills add` call. Do not bundle.
 
 ### Setup Mode — required output template
 
-The final report in step 9 must use this template. Every field is mandatory. **Do not omit a
+The final report in step 10 must use this template. Every field is mandatory. **Do not omit a
 field. Do not summarize a field with "see above".** If a field does not apply, write `<reason>`.
 
 ```text
@@ -138,7 +139,7 @@ field. Do not summarize a field with "see above".** If a field does not apply, w
 Platform: <slug from /llms.txt platform-slug table>
 
 Project Syncfusion version (Fresh Version Gate, step 4 — package-manager rule):
-- <npm shared major=<N> | NuGet exact=<X.Y.Z> | pub.dev constraint=<^X.Y.Z> | N/A — no existing packages>
+- <npm shared major=<N> | NuGet exact=<X.Y.Z> | pub.dev constraint=<^X.Y.Z> | no existing packages>
 
 Detected Syncfusion packages (from project manifest):
 - <name>@<version>   (source: <manifest file>)
@@ -153,6 +154,8 @@ Skill install commands executed:
 
 Installed skills (on-disk proof, from step 8):
 - <absolute path to installed SKILL.md>   (ls/dir output: <one-line snippet>)
+
+Registry index: <url fetched | "no registry for platform">
 
 MCP status: <integrated | not integrated>
   - config file read: <path or "none">
@@ -205,9 +208,10 @@ Before proceeding:
    step only if the inventory already resolved this request in the same session.
 4. Install missing skills if necessary. One `npx skills add --skill <name>` per detected component.
    Do not install the whole platform pack.
-5. Read the selected component `SKILL.md` completely, plus only the references the task needs.
-6. Follow the Version Resolution Policy before any package installation.
-7. Continue with implementation.
+5. Consult the platform registry for a matching variant and adapt the selected template when one exists.
+6. Read the selected component `SKILL.md` completely, plus only the references the task needs.
+7. Follow the Version Resolution Policy before any package installation.
+8. Continue with implementation.
 
 ## Route first
 
@@ -221,22 +225,23 @@ The fastest correct path is almost always:
    each component skill with its category, its package, and the behaviors its description covers.
    The session inventory is the routing source for the rest of the session, for as long as session
    memory lasts.
-4. List the candidate component skills from the session inventory: every skill whose name,
-5. Run the **Fresh Version Gate** before installing, upgrading, downgrading, or generating
+4. List the candidate component skills from the session inventory and choose the skill by required behavior.
+5. Fetch the platform registry, pick the closest variant, and adapt it. Skip only when no template matches — fall back to the component skill and state why.
+6. Run the **Fresh Version Gate** before installing, upgrading, downgrading, or generating
    code against any Syncfusion package. Re-read the manifest and lockfile. Determine the
    project's Syncfusion version using the package-manager rule in
    `references/version-resolution.md` — npm = shared major, NuGet = exact version,
    pub.dev = exact constraint. Do not invent a version from memory and do not default to
    npm-style "same major" on NuGet or Flutter. If a conflict exists, stop and report it;
    do not align versions yourself.
-6. READ `https://ai.syncfusion.com/licensing.md` before touching any key.inside a platform too,
+7. READ `https://ai.syncfusion.com/licensing.md` before touching any key.inside a platform too,
    not only across platforms: "a calendar to display events" matches both the Calendars skill
    (date-selection inputs) and the Scheduler skill (event and appointment management).
-5. Choose by required behavior, not by the word the user typed, and state the candidates, the
+8. Choose by required behavior, not by the word the user typed, and state the candidates, the
    choice, and the evidence exactly as the "Hard rule" checklist above requires. If two
    candidates still tie and the choice changes the implementation, ask one short question and stop.
-6. Install only the component skills required for detected Syncfusion usage or the current task.
-7. Read `https://ai.syncfusion.com/licensing.md` before touching any key.
+9. Install only the component skills required for detected Syncfusion usage or the current task.
+10. Read `https://ai.syncfusion.com/licensing.md` before touching any key.
 
 Subsequent requests in the same session resolve from the session inventory — do not fetch the
 inventory again. This covers both direct requests ("add a Grid") and requests that describe a goal
@@ -247,6 +252,77 @@ Refetch the inventory, only when the session inventory cannot resolve the reques
 covers the behavior, two candidates tie in a way that changes the implementation, or the request
 names a component the map does not contain — it may be newer than the setup read or belong to a
 different platform slug.
+
+## Component Registry
+
+The component registry is a curated, per-platform index of JSON templates. Each template
+packages a complete, verified implementation: source, exact package versions, and licensing
+posture. Always fetch the platform registry index before writing any component code. Use the closest matching template as the starting point. Skip only when the requirement is outside what any template describes — state the reason explicitly.
+
+The registry is currently populated for **Angular**, **React**, **Vue**, **aspnet-core**, **aspnet-mvc**, **Blazor**, **JavaScript**, **.NET MAUI**, **WinForms**, **WPF**, and **WinUI**. Every other platform uses the skill pack as the only work surface.
+
+### Endpoints
+
+- Registry index (per platform): `https://ai.syncfusion.com/r/<platform-slug>/registry.json`
+- Per-template source: `https://ai.syncfusion.com/r/<platform-slug>/<variant>.json`
+- For React, include the language segment: `https://ai.syncfusion.com/r/react/<js|ts>/<variant>.json`
+
+### When to consult the registry
+
+Treat the registry as a normal step in fulfilling a request. Trigger it when any of the
+following is true:
+
+1. **The user names a known variant** — for example "add a Grid with grouping", "show a stacked
+   column chart", "render the PDF viewer with annotations". The variant is implied, so fetching
+   the matching template is more precise than generating from memory.
+2. **The user gives a vague component request** — for example "add a chart", "I need a
+   scheduler", "drop in a data grid". Pick the template whose `name` or `description` best matches the intent, adapt it to the project, and state the chosen template before adapting.
+3. **The request clearly maps to one of the available templates.** Use that template as the
+   starting point. Adapt for framework, language, theming, and package version — do not paste
+   verbatim when the project conventions differ.
+
+### When NOT to consult the registry
+
+Skip the registry when the requirement is outside what any template describes — custom behaviour,
+application-level composition, or a workload that does not exist as a variant. In those cases,
+do not use the registry at all; fall back to the platform skill pack and state the reason.
+
+### Procedure before writing any code
+
+1. Identify the target platform from the manifest (see "Establish the project context").
+2. Install the relevant component skill first (see "Path A — official agent skills"). The skill
+   pack teaches the integration and licensing rules; the registry item applies those rules to
+   one specific implementation.
+3. Fetch `https://ai.syncfusion.com/r/<platform-slug>/registry.json` once per session.
+4. Pick a matching template by intent. When multiple templates match, prefer the one whose
+   `behaviors` align most precisely with the user's stated need.
+5. Fetch `https://ai.syncfusion.com/r/<platform-slug>/<variant>.json` (or the React
+   `js|ts` variant) to get the full source, exact dependency versions, package name, and
+   licensing posture.
+6. Cite the registry URL and the matched template name before pasting any source into the
+   project.
+7. Adapt the template — framework, language, theming, package version, project conventions.
+8. Run the verification checklist (see "Verify").
+
+### Relationship to the platform inventory
+
+`inventory.txt` and `registry.json` serve different surfaces; do not treat them as
+interchangeable:
+
+- **`inventory.txt`** is the **routing surface**. It maps every component skill on a platform
+  to its category, package, and behaviours. Read it once during setup and retain a session
+  inventory thereafter.
+- **`registry.json`** is the **work surface** for known variants. It returns a complete,
+  verified implementation template rather than a routing map.
+
+When the request describes a goal ("view my PDF file", "display events on a calendar"), start from the inventory. When the request names a component or a variant, go straight to the registry.
+
+### Fallback
+
+If the platform has no registry, no template matches, or the matched template only partially
+covers the requirement, fall back to the platform skill pack and explicitly state the gap:
+which platform, which request, and why the registry did not apply. Never silently generate from
+trained memory when a template exists that covers the same behaviour.
 
 ## Sources of knowledge
 
